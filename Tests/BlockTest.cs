@@ -1,5 +1,7 @@
 ﻿using Core;
 using Core.Crypto;
+using System.Buffers.Binary;
+using System.Text;
 
 namespace Tests
 {
@@ -10,24 +12,24 @@ namespace Tests
         public void BlockTypeGetter_ShouldReturnCorrectEnum()
         {
             byte[] tmp = Array.Empty<byte>();
-            Block b1 = new Block(BlockTypes.TOTP, (char)6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
+            Block b1 = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(BlockTypes.TOTP, b1.Type);
 
-            var bUnknown = new Block((BlockTypes)255, (char)6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
+            var bUnknown = new Block((BlockTypes)255, 6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(BlockTypes.UNKNOWN, bUnknown.Type);
         }
         [TestMethod]
         public void AlgorithmGetter_ShouldReturnCorrectEnum()
         {
             byte[] tmp = Array.Empty<byte>();
-            Block b1 = new Block(BlockTypes.TOTP, (char)6, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            Block b1 = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(AlgorithmType.SHA256, b1.Algorithm);
-            Block b2 = new Block(BlockTypes.TOTP, (char)6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
+            Block b2 = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(AlgorithmType.SHA1, b2.Algorithm);
-            Block b3 = new Block(BlockTypes.TOTP, (char)6, AlgorithmType.SHA512, 30, "service", Array.Empty<byte>());
+            Block b3 = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA512, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(AlgorithmType.SHA512, b3.Algorithm);
 
-            var bUnknown = new Block(BlockTypes.TOTP, (char)6, (AlgorithmType)255, 30, "service", Array.Empty<byte>());
+            var bUnknown = new Block(BlockTypes.TOTP, 6, (AlgorithmType)255, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(AlgorithmType.Unknown, bUnknown.Algorithm);
         }
         [TestMethod]
@@ -80,13 +82,42 @@ namespace Tests
 
             Assert.AreEqual(initialTs, bOriginal.Created);
 
-            Assert.IsTrue(bUpdated.Updated > initialTs, "Новый таймстамп должен быть больше оригинального");
+            Assert.IsTrue(bUpdated.Updated > initialTs, "The new timestamp must be larger than the original");
 
             Assert.AreEqual(bOriginal.Type, bUpdated.Type);
             Assert.AreEqual(bOriginal.Digits, bUpdated.Digits);
             Assert.AreEqual(bOriginal.Algorithm, bUpdated.Algorithm);
         }
 
+        [TestMethod]
+        public void WriteTo_ShouldWriteCorrectBinaryLayout()
+        {
+            byte[] secret = { 1, 2, 3 };
+            Block block = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1,30, "service", secret);
 
+            using MemoryStream ms = new MemoryStream();
+
+            block.WriteTo(ms);
+
+            byte[] data = ms.ToArray();
+
+            Assert.AreEqual(Block.CurrentVersion, data[BlockLayout.VersionOffset]);
+            Assert.AreEqual((byte)BlockTypes.TOTP, data[BlockLayout.TypeOffset]);
+            Assert.AreEqual(6, data[BlockLayout.DigitsOffset]);
+            Assert.AreEqual((byte)AlgorithmType.SHA1, data[BlockLayout.AlgorithmOffset]);
+
+            uint serviceLen = BinaryPrimitives.ReadUInt32LittleEndian(
+                data.AsSpan(BlockLayout.ServiceNameLengthOffset, BlockLayout.LengthSize));
+
+            uint secretLen = BinaryPrimitives.ReadUInt32LittleEndian(
+                data.AsSpan(BlockLayout.SecretLengthOffset, BlockLayout.LengthSize));
+
+            uint extraLen = BinaryPrimitives.ReadUInt32LittleEndian(
+                data.AsSpan(BlockLayout.ExtraLengthOffset, BlockLayout.LengthSize));
+
+            Assert.AreEqual((uint)Encoding.UTF8.GetByteCount("service"), serviceLen);
+            Assert.AreEqual((uint)3, secretLen);
+            Assert.AreEqual((uint)0, extraLen);
+        }
     }
 }

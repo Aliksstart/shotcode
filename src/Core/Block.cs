@@ -1,19 +1,17 @@
 ﻿using Core.Crypto;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Core
 {
     public readonly struct Block
     {
-        private readonly char _version;
-        private readonly char _type;
-        private readonly char _digits; // 6, 8
-        private readonly char _algorithm; // SHA1, SHA256, SHA512
+        public static readonly byte CurrentVersion = 1;
+        
+        private readonly byte _type;
+        private readonly byte _digits; // 6, 8
+        private readonly byte _algorithm; // SHA1, SHA256, SHA512
         private readonly ulong _ts_created;
         private readonly ulong _ts_updated;
         private readonly ulong _period_or_counter;
@@ -31,7 +29,7 @@ namespace Core
             {
                 return _type switch
                 {
-                    (char)1 => BlockTypes.TOTP,
+                    1 => BlockTypes.TOTP,
                     _ => BlockTypes.UNKNOWN
                 };
             }
@@ -46,15 +44,15 @@ namespace Core
             get {
                 return _algorithm switch
                 {
-                    (char)1 => AlgorithmType.SHA1,
-                    (char)2 => AlgorithmType.SHA256,
-                    (char)3 => AlgorithmType.SHA512,
+                    1 => AlgorithmType.SHA1,
+                    2 => AlgorithmType.SHA256,
+                    3 => AlgorithmType.SHA512,
                     _ => AlgorithmType.Unknown
                 };
             }
         }
 
-        private static DateTime convertTS(ulong ts) => DateTimeOffset.FromUnixTimeMilliseconds((long)ts).DateTime;
+        private static DateTime convertTS(ulong ts) => DateTimeOffset.FromUnixTimeMilliseconds((long)ts).UtcDateTime;
         public DateTime Created
         {
             get { return convertTS(_ts_created); }
@@ -63,14 +61,42 @@ namespace Core
         {
             get { return convertTS(_ts_updated); }
         }
+        private void writeUint32(uint value, MemoryStream ms)
+        {
+            Span<byte> buf = stackalloc byte[4];
+            BinaryPrimitives.WriteUInt32LittleEndian(buf, value);
+            ms.Write(buf);
+        }
+        private void writeUint64(ulong value, MemoryStream ms)
+        {
+            Span<byte> buf = stackalloc byte[8];
+            BinaryPrimitives.WriteUInt64LittleEndian(buf, value);
+            ms.Write(buf);
+        }
+        public void WriteTo(MemoryStream ms)
+        {
+            ms.WriteByte(CurrentVersion);
+            ms.WriteByte(_type);
+            ms.WriteByte(_digits);
+            ms.WriteByte(_algorithm);
+            writeUint64(_ts_created, ms);
+            writeUint64(_ts_updated, ms);
+            writeUint64(_period_or_counter, ms);
+            writeUint32(_len_service_name, ms);
+            writeUint32(_len_secret, ms);
+            writeUint32(_len_extra, ms);
+
+            ms.Write(_service_name);
+            ms.Write(_secrets);
+            ms.Write(_extra);
+        }
 
         public Block(BlockTypes blockType, int digits, AlgorithmType alg, ulong period_or_counter, string service_name, Span<byte> secret) {
             if (digits < 3 || digits > 254)
                 throw new ArgumentException("digit is not in the range [3;254]");
-            _version = ((char)1);
-            _type = ((char)blockType);
-            _digits = ((char)digits);
-            _algorithm = ((char)alg);
+            _type = ((byte)blockType);
+            _digits = ((byte)digits);
+            _algorithm = ((byte)alg);
             _ts_created = _ts_updated = (ulong)((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds();
             _period_or_counter = period_or_counter;
             _service_name = Encoding.UTF8.GetBytes(service_name);
@@ -81,9 +107,24 @@ namespace Core
             _len_secret = (uint)_secrets.Length;
             CryptographicOperations.ZeroMemory(secret);
         }
-        private Block(char version, char type, char digits, char algorithm, ulong ts_created, ulong ts_updated, ulong period_or_counter, uint len_service_name, uint len_secret, uint len_extra, byte[] service_name, byte[] secrets, byte[] extra)
+        internal Block(byte type, byte digits, byte algorithm, ulong ts_created, ulong ts_updated, ulong period_or_counter, string service_name, Span<byte> secret, byte[] extra)
         {
-            _version = version;
+            _type = type;
+            _digits = digits;
+            _algorithm = algorithm;
+            _ts_created = ts_created;
+            _ts_updated = ts_updated;
+            _period_or_counter = period_or_counter;
+            _service_name = Encoding.UTF8.GetBytes(service_name);
+            _len_service_name = (uint)_service_name.Length;
+            _secrets = secret.ToArray();
+            _len_secret = (uint)_secrets.Length;
+            _extra = extra;
+            _len_extra = (uint)_extra.Length;
+            CryptographicOperations.ZeroMemory(secret);
+        } 
+        private Block(byte type, byte digits, byte algorithm, ulong ts_created, ulong ts_updated, ulong period_or_counter, uint len_service_name, uint len_secret, uint len_extra, byte[] service_name, byte[] secrets, byte[] extra)
+        {
             _type = type;
             _digits = digits;
             _algorithm = algorithm;
@@ -101,7 +142,6 @@ namespace Core
         {
             
             return new Block(
-                _version,
                 _type,
                 _digits,
                 _algorithm,
@@ -115,6 +155,13 @@ namespace Core
                 _secrets,
                 _extra
             );
+        }
+        public void SecreatClear()
+        {
+            for (int i = 0; i < _secrets.Length; i++)
+            {
+                CryptographicOperations.ZeroMemory(_secrets);
+            }
         }
     }
 }

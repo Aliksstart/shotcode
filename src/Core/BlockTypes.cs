@@ -1,7 +1,7 @@
 ﻿namespace Core
 {
-    public enum BlockTypes { 
+    public enum BlockTypes : byte { 
         TOTP = 1,
-        UNKNOWN = char.MaxValue
+        UNKNOWN = byte.MaxValue
     }
 }
