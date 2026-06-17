@@ -1,10 +1,10 @@
 ﻿namespace Core.Crypto
 {
-    public enum AlgorithmType
+    public enum AlgorithmType : byte
     {
         SHA1=1,
         SHA256=2,
         SHA512=3,
-        Unknown = char.MaxValue
+        Unknown = byte.MaxValue
     }
 }
