@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <BaseOutputPath>..\..\build\core</BaseOutputPath>
     <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
 </Project>
