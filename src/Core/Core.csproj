@@ -8,5 +8,8 @@
     <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+	<ItemGroup>
+		<InternalsVisibleTo Include="Tests" />
+	</ItemGroup>
 
 </Project>
