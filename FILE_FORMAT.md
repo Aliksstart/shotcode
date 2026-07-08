@@ -1,4 +1,6 @@
 # Main structure (Header - fixed size: 112 bytes)
+All multi-byte integers are little-endian.
+
 |         Name         |  Value   |  Type  |    Size (bytes)   |
 |----------------------|----------|--------| ----------------- |
 | magic                |  "SCDB"  | byte[] |         4         |
@@ -18,19 +20,33 @@
 ## Data Area (Variable size)
 |         Name         |  Value   |  Type  |    Size (bytes)   |
 |----------------------|----------|--------| ----------------- |
-| crypted_origin       |    bin   | byte[] | len_crypto_origin |
+| origin               |    bin   | byte[] | len_crypto_origin |
 | crypted_tpm          |    bin   | byte[] |   len_crypto_tpm  |
 
 
-# Element crypto origin
+# Struct origin
+## KDF record (plaintext)
 |         Name         |  Value   |  Type  |    Size (bytes)   |
 |----------------------|----------|--------| ----------------- |
-| argon2id_time_cost   |    -     |  uint  |         4         |
-| argon2id_memory_cost |    -     |  uint  |         4         |
-| argon2id_parallelism |    -     |  uint  |         4         |
+| kdf_type             |    -     |  byte  |         1         |
+| len_payload          |    u32   |  uint  |         4         |
+| payload              |    bin   | byte[] |    len_payload    |
+
+### Payload for kdf_type = Argon2id
+v1 accepts only RFC 9106 parameters (t=3, m=65536 KiB, p=4); payload fields are reserved for future versions.
+
+|         Name         |  Value   |  Type  |    Size (bytes)   |
+|----------------------|----------|--------| ----------------- |
+| time_cost            |    -     |  uint  |         4         |
+| memory_cost          |    -     |  uint  |         4         |
+| parallelism          |    -     |  uint  |         4         |
 | salt                 |    bin   | byte[] |         32        |
+
+## Element crypto origin (encrypted)
+|         Name         |  Value   |  Type  |    Size (bytes)   |
+|----------------------|----------|--------| ----------------- |
 | count_blocks         |    -     |  uint  |         4         |
-| blocks               |    bin   | byte[] |    count_blocks   |
+| blocks               |    bin   | byte[] |      variable     |
 
 
 # Description of each block.
