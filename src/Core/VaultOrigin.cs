@@ -4,7 +4,7 @@ using System.Data;
 
 namespace Core
 {
-    public class ValutOrigin : Valut
+    public class VaultOrigin : Vault
     {
         KDF _kdf;
         private static bool TryGetKdfPayloadSize(KdfType type, out int size)
@@ -20,14 +20,13 @@ namespace Core
                     return false;
             }
         }
-        public ValutOrigin(SCDB db, ref byte[] password, int interval, Action lockedEvent) : base(db, interval, lockedEvent, ValutState.Locked)
+        public VaultOrigin(SCDB db, ref byte[] password, int interval, Action lockedEvent) : base(db, interval, lockedEvent, VaultState.Locked)
         {
             (byte[] nonce, byte[] tag, byte[] origin) = db.GetOriginBlock();
-            if (origin.Length < 5) //4 + 4 + 32)
+            if (origin.Length < 5)
                 throw new Exception("Origin block too small");
             byte kdf_id;
             uint raw_kdf_len;
-            //byte[] kdf_payload;
             int offset = 0;
             kdf_id = origin[0];
             offset += 1;
@@ -41,7 +40,6 @@ namespace Core
                 throw new FormatException("Invalid KDF payload size.");
             if (origin.Length < offset + expected_kdf_len)
                 throw new FormatException("Invalid KDF payload.");
-            //ReadOnlySpan<byte> kdf_payload = origin.AsSpan(offset, expected_kdf_len);
             byte[] kdf_payload = new byte[expected_kdf_len];
             origin.AsSpan(offset, expected_kdf_len).CopyTo(kdf_payload);
             offset += expected_kdf_len;
@@ -62,10 +60,10 @@ namespace Core
             base.Open(_kdf.Key, nonce, tag, ciphertext);
         }
 
-        public ValutOrigin(SCDB db, ref byte[] password, KdfType kdfType, int interval, Action lockedEvent) : base(db, interval, lockedEvent, ValutState.Dirty)
+        public VaultOrigin(SCDB db, ref byte[] password, KdfType kdfType, int interval, Action lockedEvent) : base(db, interval, lockedEvent, VaultState.Dirty)
         {
             if (!db.IsClear())
-                throw new FormatException("It is not possible to create ValutOrigin in a non-empty database.");
+                throw new FormatException("It is not possible to create VaultOrigin in a non-empty database.");
             switch (kdfType) { 
                 case KdfType.Argon2id:
                     _kdf = new Argon2ID(ref password, kdfType);

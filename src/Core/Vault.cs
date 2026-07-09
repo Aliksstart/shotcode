@@ -5,31 +5,31 @@ using System.Timers;
 
 namespace Core
 {
-    public enum ValutState { 
+    public enum VaultState { 
         Locked,
         Unlocked,
         Dirty
     }
-    public abstract class Valut : IDisposable
+    public abstract class Vault : IDisposable
     {
         private readonly List<Block> _blocks;
         protected readonly SCDB _db;
         private Action _lockedEvent;
 
-        private ValutState _state = ValutState.Locked;
+        private VaultState _state = VaultState.Locked;
         private readonly System.Timers.Timer _autoLockTimer;
 
-        public bool IsDirty => _state == ValutState.Dirty;
+        public bool IsDirty => _state == VaultState.Dirty;
 
         protected void MarkDirty()
         {
-            if (_state == ValutState.Unlocked || _state == ValutState.Dirty)
-                _state = ValutState.Dirty;
+            if (_state == VaultState.Unlocked || _state == VaultState.Dirty)
+                _state = VaultState.Dirty;
             else
                 throw new InvalidOperationException("Can't modify locked vault.");
         }
 
-        public Valut(SCDB db, int interval, Action lockedEvent, ValutState vs)
+        public Vault(SCDB db, int interval, Action lockedEvent, VaultState vs)
         {
             _blocks = new List<Block>();
             _db = db;
@@ -44,7 +44,7 @@ namespace Core
             Close();
         }
 
-        private void ParseValut(byte[] decrypted_text) 
+        private void ParseVault(byte[] decrypted_text) 
         {
             if (decrypted_text.Length < 4)
                 throw new InvalidDataException("Invalid database. origin payload corrupted");
@@ -126,8 +126,8 @@ namespace Core
             }
             try
             {
-                ParseValut(decrypted_text);
-                _state = ValutState.Unlocked;
+                ParseVault(decrypted_text);
+                _state = VaultState.Unlocked;
                 _autoLockTimer.Start();
             }
             finally
@@ -138,7 +138,7 @@ namespace Core
 
         protected void EncSerializePayload(MemoryStream ms, Span<byte> key, out byte[] nonce, out byte[] gcm_tag)
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
                 throw new InvalidOperationException("Can't save locked vault.");
             nonce = new byte[SCDBLayout.NonceSize];
             RandomNumberGenerator.Fill(nonce);
@@ -162,13 +162,13 @@ namespace Core
 
         public virtual void Save()
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
             {
                 throw new InvalidOperationException("Can't work with a locked block.");
             }
             else
             {
-                _state = ValutState.Unlocked;
+                _state = VaultState.Unlocked;
                 if (!_autoLockTimer.Enabled)
                 {
                     _autoLockTimer.Start();
@@ -178,7 +178,7 @@ namespace Core
         protected string[] Services 
         {
             get {
-                if (_state != ValutState.Locked)
+                if (_state != VaultState.Locked)
                 {
                     string[] services = new string[_blocks.Count];
                     for (int i = 0; i < _blocks.Count; i++)
@@ -195,7 +195,7 @@ namespace Core
         }
         protected bool AddBlock(Block block)
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
                 throw new InvalidOperationException("Can't work with a locked block.");
             foreach (var e in _blocks)
             {
@@ -208,7 +208,7 @@ namespace Core
         }
         protected bool RemoveBlock(Block block)
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
                 throw new InvalidOperationException("Can't work with a locked block.");
             bool removed = _blocks.Remove(block);
             if (removed) {
@@ -219,7 +219,7 @@ namespace Core
 
         protected bool RemoveBlock(string name)
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
                 throw new InvalidOperationException("Can't work with a locked block.");
             foreach (var e in _blocks)
             {
@@ -233,7 +233,7 @@ namespace Core
 
         public int GetCode(string name)
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
                 throw new InvalidOperationException("Can't work with a locked block.");
             foreach (var e in _blocks)
                 if (e.NameService == name)
@@ -242,7 +242,7 @@ namespace Core
         }
         public String GetCodeString(string name)
         {
-            if (_state == ValutState.Locked)
+            if (_state == VaultState.Locked)
                 throw new InvalidOperationException("Can't work with a locked block.");
             foreach (var e in _blocks)
                 if (e.NameService == name)
@@ -252,7 +252,7 @@ namespace Core
 
         protected virtual void Close() {
             _autoLockTimer.Stop();
-            _state = ValutState.Locked;
+            _state = VaultState.Locked;
             foreach (Block block in _blocks)
             {
                 block.SecreatClear();
@@ -264,7 +264,7 @@ namespace Core
         public virtual void Dispose()
         {
             _autoLockTimer?.Dispose();
-            if (_state != ValutState.Locked)
+            if (_state != VaultState.Locked)
                 Close();
         }
     }
