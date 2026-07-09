@@ -5,7 +5,9 @@ namespace Core.Crypto
 {
     internal class Argon2ID : KDF
     {
-        public override int SizePayload => 4 + 4 + 4 + 32;
+        public const int PayloadSize = 4 + 4 + 4 + 32;
+
+        public override int SizePayload => PayloadSize;
         public const int DefaultMemorySize = 65536;
         public const int DefaultTimeCost = 3;
         public const int DefaultParallelism = 4;

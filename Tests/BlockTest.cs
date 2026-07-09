@@ -1,6 +1,7 @@
 ﻿using Core;
 using Core.Crypto;
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Tests
@@ -8,6 +9,35 @@ namespace Tests
     [TestClass]
     public class BlockTest
     {
+        [TestMethod]
+        public void NameServiceGetter_ShouldReturnCorrect()
+        {
+            byte[] tmp = Array.Empty<byte>();
+            Block b1 = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
+            Assert.AreEqual("service", b1.NameService);
+        }
+        [TestMethod]
+        public void TOTPCodeGetter_ShouldReturnCorrect()
+        {
+            byte[] secret = Encoding.UTF8.GetBytes("12345678901234567890");
+            int period = 30;
+            int digits = 8;
+            var hmac = new HMACSHA1(secret);
+            long pre_T = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / period;
+            Block b1 = new Block(BlockTypes.TOTP, digits, AlgorithmType.SHA1, (ulong)period, "test", secret);
+            byte[] T = new byte[8];
+            BinaryPrimitives.WriteInt64BigEndian(T, pre_T);
+            byte[] hash = hmac.ComputeHash(T);
+
+            int offset = hash[^1] & 0x0F;
+            int binary = ((hash[offset] & 0x7F) << 24)
+                   | ((hash[offset + 1] & 0xFF) << 16)
+                   | ((hash[offset + 2] & 0xFF) << 8)
+                   | (hash[offset + 3] & 0xFF);
+            int val = binary % 100000000;
+            Assert.AreEqual(val.ToString($"D{digits}"), b1.CodeString);
+            Assert.AreEqual(val, b1.Code);
+        }
         [TestMethod]
         public void BlockTypeGetter_ShouldReturnCorrectEnum()
         {

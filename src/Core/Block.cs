@@ -23,6 +23,12 @@ namespace Core
         private readonly byte[] _secrets;
         private readonly byte[] _extra;
 
+        public string NameService {
+            get {
+                return Encoding.UTF8.GetString(_service_name);
+            }
+        }
+
         public BlockTypes Type
         {
             get
@@ -60,6 +66,31 @@ namespace Core
         public DateTime Updated
         {
             get { return convertTS(_ts_updated); }
+        }
+        public int Code {
+            get {
+                switch (Type)
+                {
+                    case BlockTypes.TOTP:
+                        var totp = new Crypto.TotpGenerator(_secrets, Algorithm, Digits, checked((int)_period_or_counter));
+                        return totp.Code;
+                    default:
+                        throw new InvalidOperationException("Unknown block type");
+                }
+            }
+        }
+        public string CodeString 
+        {
+            get {
+                switch (Type)
+                {
+                    case BlockTypes.TOTP:
+                        var totp = new Crypto.TotpGenerator(_secrets, Algorithm, Digits, checked((int)_period_or_counter));
+                        return totp.CodeString;
+                    default:
+                        throw new InvalidOperationException("Unknown block type");
+                }
+            }
         }
         private void writeUint32(uint value, MemoryStream ms)
         {

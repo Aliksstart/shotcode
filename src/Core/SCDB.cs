@@ -209,6 +209,18 @@ namespace Core
                 _crypted_origin.ToArray()
             );
         }
+        public bool IsClear()
+        {
+            return _len_crypto_origin == 0 &&
+                _crypted_origin.Length == 0 &&
+                _origin_gcm_tag.AsSpan().IndexOfAnyExcept((byte)0x00) == -1 &&
+                _nonce_origin.AsSpan().IndexOfAnyExcept((byte)0x00) == -1 &&
+                
+                _len_crypto_tpm == 0 &&
+                _crypted_tpm.Length == 0 &&
+                _tpm_gcm_tag.AsSpan().IndexOfAnyExcept((byte)0xFF) == -1 &&
+                _nonce_tpm.AsSpan().IndexOfAnyExcept((byte)0xFF) == -1;
+        }
         public void Dispose() {
             stream?.Dispose();
         }

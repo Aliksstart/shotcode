@@ -10,14 +10,14 @@ namespace Core
         Unlocked,
         Dirty
     }
-    public abstract class Valut
+    public abstract class Valut : IDisposable
     {
         private readonly List<Block> _blocks;
-        private readonly SCDB _db;
+        protected readonly SCDB _db;
         private Action _lockedEvent;
 
         private ValutState _state = ValutState.Locked;
-        private readonly System.Timers.Timer _autoLockTimer; //System.Timers.Timer(_ => OnAutoLockEvent(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan)
+        private readonly System.Timers.Timer _autoLockTimer;
 
         public bool IsDirty => _state == ValutState.Dirty;
 
@@ -29,13 +29,14 @@ namespace Core
                 throw new InvalidOperationException("Can't modify locked vault.");
         }
 
-        public Valut(SCDB db, int interval, Action lockedEvent)
+        public Valut(SCDB db, int interval, Action lockedEvent, ValutState vs)
         {
             _blocks = new List<Block>();
             _db = db;
             _autoLockTimer = new System.Timers.Timer(interval);
             _autoLockTimer.Elapsed += _autoLockTimer_Elapsed;
             _lockedEvent = lockedEvent;
+            _state = vs;
         }
 
         private void _autoLockTimer_Elapsed(object? sender, ElapsedEventArgs e)
@@ -116,7 +117,7 @@ namespace Core
             }
         }
 
-        protected virtual void Open(byte[] key, byte[] nonce, byte[] tag, byte[] ciphertext)
+        protected virtual void Open(Span<byte> key, byte[] nonce, byte[] tag, byte[] ciphertext)
         {
             byte[] decrypted_text = new byte[ciphertext.Length];
             using (AesGcm aesGcm = new AesGcm(key, tag.Length))
@@ -135,29 +136,118 @@ namespace Core
             }
         }
 
-        protected void SerializePayload(MemoryStream ms)
+        protected void EncSerializePayload(MemoryStream ms, Span<byte> key, out byte[] nonce, out byte[] gcm_tag)
         {
-            // перевести на memoryStream
+            if (_state == ValutState.Locked)
+                throw new InvalidOperationException("Can't save locked vault.");
+            nonce = new byte[SCDBLayout.NonceSize];
+            RandomNumberGenerator.Fill(nonce);
+            gcm_tag = new byte[SCDBLayout.GcmTagSize];
+            using MemoryStream local = new MemoryStream();
             Span<byte> buf_count = stackalloc byte[4];
             BinaryPrimitives.WriteUInt32LittleEndian(buf_count, checked((uint)_blocks.Count));
-            ms.Write(buf_count);
+            local.Write(buf_count);
             foreach (Block block in _blocks) 
-                block.WriteTo(ms);
+                block.WriteTo(local);
+            ReadOnlySpan<byte> plaintext = local.GetBuffer().AsSpan(0, (int)local.Length);
+            byte[] ciphertext = new byte[plaintext.Length];
+
+            using (AesGcm aes = new AesGcm(key, gcm_tag.Length))
+            {
+                aes.Encrypt(nonce, plaintext, ciphertext, gcm_tag);
+            }
+            CryptographicOperations.ZeroMemory(local.GetBuffer().AsSpan(0, (int)local.Length));
+            ms.Write(ciphertext);
         }
 
-        public abstract void Save();
-        protected void AddBlock(Block block)
+        public virtual void Save()
         {
+            if (_state == ValutState.Locked)
+            {
+                throw new InvalidOperationException("Can't work with a locked block.");
+            }
+            else
+            {
+                _state = ValutState.Unlocked;
+                if (!_autoLockTimer.Enabled)
+                {
+                    _autoLockTimer.Start();
+                }
+            }
+        }
+        protected string[] Services 
+        {
+            get {
+                if (_state != ValutState.Locked)
+                {
+                    string[] services = new string[_blocks.Count];
+                    for (int i = 0; i < _blocks.Count; i++)
+                    {
+                        services[i] = _blocks[i].NameService;
+                    }
+                    return services;
+                }
+                else
+                {
+                    throw new InvalidOperationException("Can't work with a locked block.");
+                }
+            }
+        }
+        protected bool AddBlock(Block block)
+        {
+            if (_state == ValutState.Locked)
+                throw new InvalidOperationException("Can't work with a locked block.");
+            foreach (var e in _blocks)
+            {
+                if (e.NameService == block.NameService)
+                    return false;
+            }
             _blocks.Add(block);
             MarkDirty();
+            return true;
         }
         protected bool RemoveBlock(Block block)
         {
+            if (_state == ValutState.Locked)
+                throw new InvalidOperationException("Can't work with a locked block.");
             bool removed = _blocks.Remove(block);
             if (removed) {
                 MarkDirty();
             }
             return removed;
+        }
+
+        protected bool RemoveBlock(string name)
+        {
+            if (_state == ValutState.Locked)
+                throw new InvalidOperationException("Can't work with a locked block.");
+            foreach (var e in _blocks)
+            {
+                if (e.NameService == name)
+                {
+                    return RemoveBlock(e);
+                }
+            }
+            return false;
+        }
+
+        public int GetCode(string name)
+        {
+            if (_state == ValutState.Locked)
+                throw new InvalidOperationException("Can't work with a locked block.");
+            foreach (var e in _blocks)
+                if (e.NameService == name)
+                    return e.Code;
+            return -1;
+        }
+        public String GetCodeString(string name)
+        {
+            if (_state == ValutState.Locked)
+                throw new InvalidOperationException("Can't work with a locked block.");
+            foreach (var e in _blocks)
+                if (e.NameService == name)
+                    return e.CodeString;
+            return String.Empty;
         }
 
         protected virtual void Close() {
@@ -169,6 +259,13 @@ namespace Core
             }
             _blocks.Clear();
             _lockedEvent();
+        }
+
+        public virtual void Dispose()
+        {
+            _autoLockTimer?.Dispose();
+            if (_state != ValutState.Locked)
+                Close();
         }
     }
 }

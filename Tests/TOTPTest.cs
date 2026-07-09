@@ -82,6 +82,7 @@ namespace Tests.Crypto
             int digits = 8;
             var hmac = new HMACSHA1(secret);
             long pre_T = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / period;
+            TotpGenerator gen = new TotpGenerator(secret, AlgorithmType.SHA1, digits, period);
             byte[] T = new byte[8];
             BinaryPrimitives.WriteInt64BigEndian(T, pre_T);
             byte[] hash = hmac.ComputeHash(T);
@@ -92,7 +93,6 @@ namespace Tests.Crypto
                    | ((hash[offset + 2] & 0xFF) << 8)
                    | (hash[offset + 3] & 0xFF);
             int val = binary % 100000000;
-            TotpGenerator gen = new TotpGenerator(secret, AlgorithmType.SHA1, digits, period);
             Assert.AreEqual(val.ToString($"D{digits}"), gen.CodeString);
         }
     }
