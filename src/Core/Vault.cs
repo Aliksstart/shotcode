@@ -166,7 +166,7 @@ namespace Core
         {
             if (_state == VaultState.Locked)
             {
-                throw new InvalidOperationException("Can't work with a locked block.");
+                throw new InvalidOperationException("Can't work with a locked vault.");
             }
             else
             {
@@ -193,7 +193,7 @@ namespace Core
                     }
                     else
                     {
-                        throw new InvalidOperationException("Can't work with a locked block.");
+                        throw new InvalidOperationException("Can't work with a locked vault.");
                     }
                 }
             }
@@ -203,7 +203,7 @@ namespace Core
             lock (_lock)
             {
                 if (_state == VaultState.Locked)
-                    throw new InvalidOperationException("Can't work with a locked block.");
+                    throw new InvalidOperationException("Can't work with a locked vault.");
                 foreach (var e in _blocks)
                 {
                     if (e.NameService == block.NameService)
@@ -228,7 +228,7 @@ namespace Core
             lock (_lock)
             {
                 if (_state == VaultState.Locked)
-                    throw new InvalidOperationException("Can't work with a locked block.");
+                    throw new InvalidOperationException("Can't work with a locked vault.");
                 foreach (var e in _blocks)
                 {
                     if (e.NameService == name)
@@ -245,7 +245,7 @@ namespace Core
             lock (_lock)
             {
                 if (_state == VaultState.Locked)
-                   throw new InvalidOperationException("Can't work with a locked block.");
+                   throw new InvalidOperationException("Can't work with a locked vault.");
                 foreach (var e in _blocks)
                 {
                     if (e.NameService == name)
@@ -261,7 +261,7 @@ namespace Core
             lock (_lock)
             { 
                 if (_state == VaultState.Locked)
-                    throw new InvalidOperationException("Can't work with a locked block.");
+                    throw new InvalidOperationException("Can't work with a locked vault.");
                 foreach (var e in _blocks)
                     if (e.NameService == name)
                         return e.CodeString;
@@ -278,7 +278,7 @@ namespace Core
                     _autoLockTimer.Dispose();
                     OnLocking();
                     foreach (Block block in _blocks)
-                        block.SecreatClear();
+                        block.SecretClear();
                     _blocks.Clear();
                     _state = VaultState.Locked;
                     transitioned = true;

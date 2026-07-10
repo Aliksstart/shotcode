@@ -74,15 +74,15 @@ namespace Core
             stream.ReadExactly(buf);
             return BinaryPrimitives.ReadUInt64LittleEndian(buf);
         }
-        private void ReaderAllFile() {
+        private void ReadAllFile() {
             if (!stream.CanRead)
-                throw new IOException("Stream is not readtebel");
+                throw new IOException("Stream is not readable");
             if (stream.Length < SCDBLayout.MinFileSize)
                 throw new InvalidDataException("File too short to be a valid SCDB.");
             stream.Position = 0;
             stream.ReadExactly(_magic);
             if (!_magic.AsSpan().SequenceEqual(MagicConst))
-                throw new InvalidDataException("Format file unknown");
+                throw new InvalidDataException("Unknown file format");
             _version = ReadUInt32();
             if (_version != 1)
                 throw new InvalidDataException("Unsupported version");
@@ -115,15 +115,15 @@ namespace Core
             BinaryPrimitives.WriteUInt64LittleEndian(buf, value);
             stream.Write(buf);
         }
-        private void WriterAllFile() {
+        private void WriteAllFile() {
             if (!stream.CanWrite)
-                throw new IOException("Stream is not writabel");
+                throw new IOException("Stream is not writable");
             if (_version != 1)
                 throw new NotSupportedException("Unsupported version: "+_version.ToString());
             if (!IsUnusedField(_reserved))
-                throw new InvalidDataException("Used reversed bytes");
+                throw new InvalidDataException("Reserved bytes are used (must be 0xFF)");
             if (_len_crypto_tpm != 0 || _crypted_tpm.Length != 0 || !IsUnusedField(_tpm_gcm_tag) || !IsUnusedField(_nonce_tpm) || _tpm_updated_ts != ulong.MaxValue)
-                throw new InvalidDataException("Fill unused tpm value");
+                throw new InvalidDataException("TPM fields must be unused for version 1");
 
             if (_len_crypto_origin != _crypted_origin.Length)
                 throw new InvalidDataException("Invalid origin crypto length.");
@@ -155,13 +155,13 @@ namespace Core
                 if (File.Exists(path))
                 {
                     stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-                    ReaderAllFile();
+                    ReadAllFile();
                 }
                 else
                 {
                     createBaseStruct();
                     stream = File.Open(path, FileMode.Create, FileAccess.ReadWrite);
-                    WriterAllFile();
+                    WriteAllFile();
                 }
             }catch
             {
@@ -177,10 +177,10 @@ namespace Core
         public void setCryptoOrigin(byte[] nonce, byte[] origin_gcm_tag, byte[] data)
         {
             if (nonce.Length != _nonce_origin.Length) {
-                throw new ArgumentException("nonce invalid value");
+                throw new ArgumentException("Invalid nonce value");
             }
             if (origin_gcm_tag.Length != _origin_gcm_tag.Length) {
-                throw new ArgumentException("origin gcm tag none value");
+                throw new ArgumentException("Invalid origin GCM tag value");
             }
             WriteAt(SCDBLayout.OriginNonceOffset, nonce);
             nonce.CopyTo(_nonce_origin, 0);

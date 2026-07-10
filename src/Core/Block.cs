@@ -20,7 +20,7 @@ namespace Core
         private readonly uint _len_extra;
 
         private readonly byte[] _service_name;
-        private readonly byte[] _secrets;
+        private readonly byte[] _secret;
         private readonly byte[] _extra;
 
         public string NameService {
@@ -72,7 +72,7 @@ namespace Core
                 switch (Type)
                 {
                     case BlockTypes.TOTP:
-                        var totp = new Crypto.TotpGenerator(_secrets, Algorithm, Digits, checked((int)_period_or_counter));
+                        var totp = new Crypto.TotpGenerator(_secret, Algorithm, Digits, checked((int)_period_or_counter));
                         return totp.Code;
                     default:
                         throw new InvalidOperationException("Unknown block type");
@@ -85,7 +85,7 @@ namespace Core
                 switch (Type)
                 {
                     case BlockTypes.TOTP:
-                        var totp = new Crypto.TotpGenerator(_secrets, Algorithm, Digits, checked((int)_period_or_counter));
+                        var totp = new Crypto.TotpGenerator(_secret, Algorithm, Digits, checked((int)_period_or_counter));
                         return totp.CodeString;
                     default:
                         throw new InvalidOperationException("Unknown block type");
@@ -118,7 +118,7 @@ namespace Core
             writeUint32(_len_extra, ms);
 
             ms.Write(_service_name);
-            ms.Write(_secrets);
+            ms.Write(_secret);
             ms.Write(_extra);
         }
 
@@ -134,8 +134,8 @@ namespace Core
             _len_service_name = (uint)_service_name.Length;
             _len_extra = 0;
             _extra = Array.Empty<byte>();
-            _secrets = secret.ToArray();
-            _len_secret = (uint)_secrets.Length;
+            _secret = secret.ToArray();
+            _len_secret = (uint)_secret.Length;
             CryptographicOperations.ZeroMemory(secret);
         }
         internal Block(byte type, byte digits, byte algorithm, ulong ts_created, ulong ts_updated, ulong period_or_counter, string service_name, Span<byte> secret, byte[] extra)
@@ -148,13 +148,13 @@ namespace Core
             _period_or_counter = period_or_counter;
             _service_name = Encoding.UTF8.GetBytes(service_name);
             _len_service_name = (uint)_service_name.Length;
-            _secrets = secret.ToArray();
-            _len_secret = (uint)_secrets.Length;
+            _secret = secret.ToArray();
+            _len_secret = (uint)_secret.Length;
             _extra = extra;
             _len_extra = (uint)_extra.Length;
             CryptographicOperations.ZeroMemory(secret);
         } 
-        private Block(byte type, byte digits, byte algorithm, ulong ts_created, ulong ts_updated, ulong period_or_counter, uint len_service_name, uint len_secret, uint len_extra, byte[] service_name, byte[] secrets, byte[] extra)
+        private Block(byte type, byte digits, byte algorithm, ulong ts_created, ulong ts_updated, ulong period_or_counter, uint len_service_name, uint len_secret, uint len_extra, byte[] service_name, byte[] secret, byte[] extra)
         {
             _type = type;
             _digits = digits;
@@ -166,7 +166,7 @@ namespace Core
             _len_secret = len_secret;
             _len_extra = len_extra;
             _service_name = service_name;
-            _secrets = secrets;
+            _secret = secret;
             _extra = extra;
         }
         public Block WithUpdatedTimestamp()
@@ -183,16 +183,13 @@ namespace Core
                 _len_secret,
                 _len_extra,
                 _service_name,
-                _secrets,
+                _secret,
                 _extra
             );
         }
-        public void SecreatClear()
+        public void SecretClear()
         {
-            for (int i = 0; i < _secrets.Length; i++)
-            {
-                CryptographicOperations.ZeroMemory(_secrets);
-            }
+            CryptographicOperations.ZeroMemory(_secret);
         }
     }
 }

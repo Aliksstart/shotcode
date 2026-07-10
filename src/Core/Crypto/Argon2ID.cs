@@ -60,13 +60,13 @@ namespace Core.Crypto
                 _a2id_parallelism = checked((int)a2id_parallelism);
 
                 if (_a2id_time_cost != DefaultTimeCost) 
-                    throw new InvalidDataException($"Invalid value time const. Expected {DefaultTimeCost} real {_a2id_time_cost}");
+                    throw new InvalidDataException($"Invalid value time cost. Expected {DefaultTimeCost} real {_a2id_time_cost}");
 
                 if (_a2id_memory_cost != DefaultMemorySize)
-                    throw new InvalidDataException($"Invalid value memory size const. Expected {DefaultMemorySize} real {_a2id_memory_cost}");
+                    throw new InvalidDataException($"Invalid value memory size cost. Expected {DefaultMemorySize} real {_a2id_memory_cost}");
 
                 if (_a2id_parallelism != DefaultParallelism)
-                    throw new InvalidDataException($"Invalid value parallelism const. Expected {DefaultParallelism} real {_a2id_parallelism}");
+                    throw new InvalidDataException($"Invalid value parallelism. Expected {DefaultParallelism} real {_a2id_parallelism}");
 
                 payload.AsSpan(offset, 32).CopyTo(_a2id_salt);
                 derivativeKey(ref password);

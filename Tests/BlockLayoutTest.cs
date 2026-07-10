@@ -20,7 +20,7 @@ namespace Tests
         private int _ts_updated_size = 8;
         private int _period_or_counter_size = 8;
         private int _len_service_name_size = 4;
-        private int _len_sercret_size = 4;
+        private int _len_secret_size = 4;
         private int _len_extra_size = 4;
         [TestMethod]
         public void BlockLayout_ShouldMatchActualFields()
@@ -33,10 +33,10 @@ namespace Tests
             Assert.AreEqual(_ts_updated_size, BlockLayout.TimestampSize);
             Assert.AreEqual(_period_or_counter_size, BlockLayout.PeriodOrCounterSize);
             Assert.AreEqual(_len_service_name_size, BlockLayout.LengthSize);
-            Assert.AreEqual(_len_sercret_size, BlockLayout.LengthSize);
+            Assert.AreEqual(_len_secret_size, BlockLayout.LengthSize);
             Assert.AreEqual(_len_extra_size, BlockLayout.LengthSize);
             int min_block_size = _version_size + _type_size + _digits_size + _algorithm_size + _ts_created_size +
-                _ts_updated_size + _period_or_counter_size + _len_service_name_size + _len_sercret_size + _len_extra_size;
+                _ts_updated_size + _period_or_counter_size + _len_service_name_size + _len_secret_size + _len_extra_size;
             Assert.AreEqual(min_block_size, BlockLayout.MinBlockSize);
         }
         [TestMethod]
@@ -50,8 +50,8 @@ namespace Tests
             int ts_updated_offset = ts_created_offset + _ts_created_size;
             int period_or_counter_offset = ts_updated_offset + _ts_updated_size;
             int len_service_name_offset = period_or_counter_offset + _period_or_counter_size;
-            int len_sercret_offset = len_service_name_offset + _len_service_name_size;
-            int len_extra_offset = len_sercret_offset + _len_sercret_size;
+            int len_secret_offset = len_service_name_offset + _len_service_name_size;
+            int len_extra_offset = len_secret_offset + _len_secret_size;
             Assert.AreEqual(version_offset, BlockLayout.VersionOffset);
             Assert.AreEqual(type_offset, BlockLayout.TypeOffset);
             Assert.AreEqual(digits_offset, BlockLayout.DigitsOffset);
@@ -60,7 +60,7 @@ namespace Tests
             Assert.AreEqual(ts_updated_offset, BlockLayout.UpdatedTSOffset);
             Assert.AreEqual(period_or_counter_offset, BlockLayout.PeriodOrCounterOffset);
             Assert.AreEqual(len_service_name_offset, BlockLayout.ServiceNameLengthOffset);
-            Assert.AreEqual(len_sercret_offset, BlockLayout.SecretLengthOffset);
+            Assert.AreEqual(len_secret_offset, BlockLayout.SecretLengthOffset);
             Assert.AreEqual(len_extra_offset, BlockLayout.ExtraLengthOffset);
 
             int data_offset = len_extra_offset + _len_extra_size;

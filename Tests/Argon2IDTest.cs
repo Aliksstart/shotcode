@@ -85,7 +85,7 @@ namespace Tests.Crypto
                 ms_custom_default_value.Write(buf_val);
                 ms_custom_default_value.Write(defaultPayload.AsSpan(4, defaultPayload.Length - 4));
                 var eq = Assert.ThrowsException<InvalidDataException>(() => { var kdf = new Argon2ID(ref pass, KdfType.Argon2id, ms_custom_default_value.ToArray()); });
-                Assert.AreEqual($"Invalid value time const. Expected {Argon2ID.DefaultTimeCost} real {Argon2ID.DefaultTimeCost + 1}", eq.Message);
+                Assert.AreEqual($"Invalid value time cost. Expected {Argon2ID.DefaultTimeCost} real {Argon2ID.DefaultTimeCost + 1}", eq.Message);
                 CollectionAssert.AreEqual(Array.Empty<byte>(), pass);
             }
 
@@ -98,7 +98,7 @@ namespace Tests.Crypto
                 ms_custom_default_value.Write(buf_val);
                 ms_custom_default_value.Write(defaultPayload.AsSpan(8, defaultPayload.Length - 8));
                 var eq = Assert.ThrowsException<InvalidDataException>(() => { var kdf = new Argon2ID(ref pass, KdfType.Argon2id, ms_custom_default_value.ToArray()); });
-                Assert.AreEqual($"Invalid value memory size const. Expected {Argon2ID.DefaultMemorySize} real {Argon2ID.DefaultMemorySize + 1}", eq.Message);
+                Assert.AreEqual($"Invalid value memory size cost. Expected {Argon2ID.DefaultMemorySize} real {Argon2ID.DefaultMemorySize + 1}", eq.Message);
                 CollectionAssert.AreEqual(Array.Empty<byte>(), pass);
             }
 
@@ -111,7 +111,7 @@ namespace Tests.Crypto
                 ms_custom_default_value.Write(buf_val);
                 ms_custom_default_value.Write(defaultPayload.AsSpan(12, defaultPayload.Length - 12));
                 var eq = Assert.ThrowsException<InvalidDataException>(() => { var kdf = new Argon2ID(ref pass, KdfType.Argon2id, ms_custom_default_value.ToArray()); });
-                Assert.AreEqual($"Invalid value parallelism const. Expected {Argon2ID.DefaultParallelism} real {Argon2ID.DefaultParallelism + 1}", eq.Message);
+                Assert.AreEqual($"Invalid value parallelism. Expected {Argon2ID.DefaultParallelism} real {Argon2ID.DefaultParallelism + 1}", eq.Message);
                 CollectionAssert.AreEqual(Array.Empty<byte>(), pass);
             }
 

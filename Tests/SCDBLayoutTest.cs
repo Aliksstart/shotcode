@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Tests
 {
     [TestClass]
-    public class SCDBLauoutTest
+    public class SCDBLayoutTest
     {
         private int _magicSize = 4;
         private int _version_size = 4;
@@ -27,7 +27,6 @@ namespace Tests
         [TestMethod]
         public void LayoutSizes_ShouldMatchActualFields()
         {
-            // проверяем размеры массивов
             Assert.AreEqual(SCDBLayout.MagicSize, _magicSize);
             Assert.AreEqual(SCDBLayout.VersionSize, _version_size);
             Assert.AreEqual(SCDBLayout.TimestampSize, _created_ts_size);
