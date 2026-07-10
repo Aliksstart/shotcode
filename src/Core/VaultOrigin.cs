@@ -74,12 +74,15 @@ namespace Core
 
         public override void Save()
         {
-            MemoryStream ms = new MemoryStream();
-            _kdf.MoveTo(ms);
-            byte[] nonce, gcm_tag;
-            base.EncSerializePayload(ms, _kdf.Key, out nonce, out gcm_tag);
-            base._db.setCryptoOrigin(nonce, gcm_tag, ms.ToArray());
-            base.Save();
+            lock (base._lock)
+            {
+                MemoryStream ms = new MemoryStream();
+                _kdf.MoveTo(ms);
+                byte[] nonce, gcm_tag;
+                base.EncSerializePayload(ms, _kdf.Key, out nonce, out gcm_tag);
+                base._db.setCryptoOrigin(nonce, gcm_tag, ms.ToArray());
+                base.Save();
+            }
         }
         public string[] GetNameServices() {
             return base.Services;
@@ -97,10 +100,9 @@ namespace Core
             base.Close();
         }
 
-        public override void Dispose()
+        protected override void OnLocking()
         {
             _kdf?.Dispose();
-            base.Dispose();
         }
     }
 }

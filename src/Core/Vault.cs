@@ -12,6 +12,7 @@ namespace Core
     }
     public abstract class Vault : IDisposable
     {
+        protected readonly object _lock;
         private readonly List<Block> _blocks;
         protected readonly SCDB _db;
         private Action _lockedEvent;
@@ -31,6 +32,7 @@ namespace Core
 
         public Vault(SCDB db, int interval, Action lockedEvent, VaultState vs)
         {
+            _lock = new object();
             _blocks = new List<Block>();
             _db = db;
             _autoLockTimer = new System.Timers.Timer(interval);
@@ -178,38 +180,42 @@ namespace Core
         protected string[] Services 
         {
             get {
-                if (_state != VaultState.Locked)
+                lock (_lock)
                 {
-                    string[] services = new string[_blocks.Count];
-                    for (int i = 0; i < _blocks.Count; i++)
+                    if (_state != VaultState.Locked)
                     {
-                        services[i] = _blocks[i].NameService;
+                        string[] services = new string[_blocks.Count];
+                        for (int i = 0; i < _blocks.Count; i++)
+                        {
+                            services[i] = _blocks[i].NameService;
+                        }
+                        return services;
                     }
-                    return services;
-                }
-                else
-                {
-                    throw new InvalidOperationException("Can't work with a locked block.");
+                    else
+                    {
+                        throw new InvalidOperationException("Can't work with a locked block.");
+                    }
                 }
             }
         }
         protected bool AddBlock(Block block)
         {
-            if (_state == VaultState.Locked)
-                throw new InvalidOperationException("Can't work with a locked block.");
-            foreach (var e in _blocks)
+            lock (_lock)
             {
-                if (e.NameService == block.NameService)
-                    return false;
+                if (_state == VaultState.Locked)
+                    throw new InvalidOperationException("Can't work with a locked block.");
+                foreach (var e in _blocks)
+                {
+                    if (e.NameService == block.NameService)
+                        return false;
+                }
+                _blocks.Add(block);
+                MarkDirty();
+                return true;
             }
-            _blocks.Add(block);
-            MarkDirty();
-            return true;
         }
-        protected bool RemoveBlock(Block block)
+        private bool RemoveBlock(Block block)
         {
-            if (_state == VaultState.Locked)
-                throw new InvalidOperationException("Can't work with a locked block.");
             bool removed = _blocks.Remove(block);
             if (removed) {
                 MarkDirty();
@@ -219,53 +225,72 @@ namespace Core
 
         protected bool RemoveBlock(string name)
         {
-            if (_state == VaultState.Locked)
-                throw new InvalidOperationException("Can't work with a locked block.");
-            foreach (var e in _blocks)
+            lock (_lock)
             {
-                if (e.NameService == name)
+                if (_state == VaultState.Locked)
+                    throw new InvalidOperationException("Can't work with a locked block.");
+                foreach (var e in _blocks)
                 {
-                    return RemoveBlock(e);
+                    if (e.NameService == name)
+                    {
+                        return RemoveBlock(e);
+                    }
                 }
+                return false;
             }
-            return false;
         }
 
         public int GetCode(string name)
         {
-            if (_state == VaultState.Locked)
-                throw new InvalidOperationException("Can't work with a locked block.");
-            foreach (var e in _blocks)
-                if (e.NameService == name)
-                    return e.Code;
-            return -1;
+            lock (_lock)
+            {
+                if (_state == VaultState.Locked)
+                   throw new InvalidOperationException("Can't work with a locked block.");
+                foreach (var e in _blocks)
+                {
+                    if (e.NameService == name)
+                    {
+                        return e.Code;
+                    }
+                }
+                return -1;
+            }
         }
         public String GetCodeString(string name)
         {
-            if (_state == VaultState.Locked)
-                throw new InvalidOperationException("Can't work with a locked block.");
-            foreach (var e in _blocks)
-                if (e.NameService == name)
-                    return e.CodeString;
-            return String.Empty;
+            lock (_lock)
+            { 
+                if (_state == VaultState.Locked)
+                    throw new InvalidOperationException("Can't work with a locked block.");
+                foreach (var e in _blocks)
+                    if (e.NameService == name)
+                        return e.CodeString;
+                return String.Empty;
+            }
         }
 
         protected virtual void Close() {
-            _autoLockTimer.Stop();
-            _state = VaultState.Locked;
-            foreach (Block block in _blocks)
+            bool transitioned = false;
+            lock (_lock)
             {
-                block.SecreatClear();
+                if (_state != VaultState.Locked)
+                {
+                    _autoLockTimer.Dispose();
+                    OnLocking();
+                    foreach (Block block in _blocks)
+                        block.SecreatClear();
+                    _blocks.Clear();
+                    _state = VaultState.Locked;
+                    transitioned = true;
+                }
             }
-            _blocks.Clear();
-            _lockedEvent();
+
+            if (transitioned)
+                _lockedEvent();
         }
 
-        public virtual void Dispose()
-        {
-            _autoLockTimer?.Dispose();
-            if (_state != VaultState.Locked)
-                Close();
-        }
+        protected abstract void OnLocking();
+
+        public virtual void Dispose() => Close();
     }
 }
