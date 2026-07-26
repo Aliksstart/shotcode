@@ -98,6 +98,8 @@ namespace Core
             stream.ReadExactly(_tpm_gcm_tag);
             if (_len_crypto_origin != 0)
             {
+                if (_len_crypto_origin > stream.Length - stream.Position)
+                    throw new InvalidDataException("Incorrect length specified for the archive's origin section");
                 _crypted_origin = new byte[_len_crypto_origin];
                 stream.ReadExactly(_crypted_origin);
             }
