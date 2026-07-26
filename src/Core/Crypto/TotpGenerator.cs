@@ -13,12 +13,9 @@ namespace Core.Crypto
                 throw new ArgumentNullException("Secret is null");
             if (secret.Length == 0)
                 throw new ArgumentException("Secret must not be empty.", nameof(secret));
-            if (digits < 4 || digits > 8)
-                throw new ArgumentOutOfRangeException("Digits must be between 4 and 8.");
-            if (period < 15 || period > 120)
-                throw new ArgumentOutOfRangeException("Period must be between 15 and 120 seconds.");
             if (t0 < 0)
                 throw new ArgumentOutOfRangeException(nameof(t0));
+            Constraints.Totp.Validate(digits, (ulong)period);
             _digits = digits;
         }
         private void Calculation(byte[] secret, AlgorithmType algorithm, int period, long unix_time, int t0)

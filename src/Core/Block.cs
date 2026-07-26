@@ -1,5 +1,6 @@
 ﻿using Core.Crypto;
 using System.Buffers.Binary;
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -123,8 +124,17 @@ namespace Core
         }
 
         public Block(BlockTypes blockType, int digits, AlgorithmType alg, ulong period_or_counter, string service_name, Span<byte> secret) {
-            if (digits < 3 || digits > 254)
-                throw new ArgumentException("digit is not in the range [3;254]");
+            switch (blockType)
+            {
+                case BlockTypes.TOTP:
+                    Crypto.Constraints.Totp.Validate(digits, period_or_counter);
+                    break;
+                default:
+                    if (digits < 3 || digits > 254)
+                        throw new ArgumentOutOfRangeException(nameof(digits), "digit is not in the range [3;254]");
+                    break;
+            }
+            
             _type = ((byte)blockType);
             _digits = ((byte)digits);
             _algorithm = ((byte)alg);

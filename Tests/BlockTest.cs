@@ -1,6 +1,8 @@
 ﻿using Core;
 using Core.Crypto;
+using Core.Crypto.Constraints;
 using System.Buffers.Binary;
+using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -65,28 +67,66 @@ namespace Tests
         [TestMethod]
         public void Digits_ShouldAcceptValidRange()
         {
-            Block bMin = new Block(BlockTypes.TOTP, 3, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            Block bMin = new Block(BlockTypes.UNKNOWN, 3, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(3, bMin.Digits);
 
-            Block bMax = new Block(BlockTypes.TOTP, 254, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            Block bTotpMin = new Block(BlockTypes.TOTP, 4, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            Assert.AreEqual(4, bTotpMin.Digits);
+
+            Block bTotpMax = new Block(BlockTypes.TOTP, 8, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            Assert.AreEqual(8, bTotpMax.Digits);
+
+            Block bMax = new Block(BlockTypes.UNKNOWN, 254, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
             Assert.AreEqual(254, bMax.Digits);
         }
 
         [TestMethod]
         public void Digits_ShouldThrowArgumentException_WhenValueIsInvalid()
         {
-            var exMin = Assert.ThrowsException<ArgumentException>(() =>
+            int TOTPMinDigits = Core.Crypto.Constraints.Totp.MinDigits;
+            int TOTPMaxDigits = Core.Crypto.Constraints.Totp.MaxDigits;
+            var exMin = Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            {
+                new Block(BlockTypes.UNKNOWN, 2, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            });
+            Assert.AreEqual("digit is not in the range [3;254] (Parameter 'digits')", exMin.Message);
+
+            var exMax = Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            {
+                new Block(BlockTypes.UNKNOWN, 255, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
+            });
+            Assert.AreEqual("digit is not in the range [3;254] (Parameter 'digits')", exMax.Message);
+
+            var exTotpMin = Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
             {
                 new Block(BlockTypes.TOTP, 2, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
             });
-            Assert.AreEqual("digit is not in the range [3;254]", exMin.Message);
+            Assert.AreEqual($"TOTP digits must be in range [{TOTPMinDigits};{TOTPMaxDigits}] (Parameter 'digits')", exTotpMin.Message);
 
-            var exMax = Assert.ThrowsException<ArgumentException>(() =>
+            var exTotpMax = Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
             {
                 new Block(BlockTypes.TOTP, 255, AlgorithmType.SHA256, 30, "service", Array.Empty<byte>());
             });
-            Assert.AreEqual("digit is not in the range [3;254]", exMax.Message);
+            Assert.AreEqual($"TOTP digits must be in range [{TOTPMinDigits};{TOTPMaxDigits}] (Parameter 'digits')", exTotpMax.Message);
         }
+
+        [TestMethod]
+        public void Constructor_TOTPPeriodRange_Check()
+        {
+            int MinPeriodSeconds = Core.Crypto.Constraints.Totp.MinPeriodSeconds;
+            int MaxPeriodSeconds = Core.Crypto.Constraints.Totp.MaxPeriodSeconds;
+            var exTotpMin = Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            {
+                new Block(BlockTypes.TOTP, 5, AlgorithmType.SHA256, 10, "service", Array.Empty<byte>());
+            });
+            Assert.AreEqual($"TOTP period must be in range [{MinPeriodSeconds};{MaxPeriodSeconds}] seconds (Parameter 'period')", exTotpMin.Message);
+            var exTotpMax = Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            {
+                new Block(BlockTypes.TOTP, 5, AlgorithmType.SHA256, 300, "service", Array.Empty<byte>());
+            });
+            Assert.AreEqual($"TOTP period must be in range [{MinPeriodSeconds};{MaxPeriodSeconds}] seconds (Parameter 'period')", exTotpMax.Message);
+        }
+
         [TestMethod]
         public void Constructor_ShouldClearSourceSecretBytes_AfterCopying()
         {
