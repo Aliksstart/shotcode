@@ -5,6 +5,11 @@ using System.Timers;
 
 namespace Core
 {
+    public class VaultDecryptionException : Exception
+    {
+        public VaultDecryptionException(Exception inner)
+            : base("Failed to decrypt vault: wrong password or corrupted file.", inner) { }
+    }
     public enum VaultState { 
         Locked,
         Unlocked,
@@ -122,15 +127,22 @@ namespace Core
         protected virtual void Open(Span<byte> key, byte[] nonce, byte[] tag, byte[] ciphertext)
         {
             byte[] decrypted_text = new byte[ciphertext.Length];
-            using (AesGcm aesGcm = new AesGcm(key, tag.Length))
-            {
-                aesGcm.Decrypt(nonce, ciphertext, tag, decrypted_text);
-            }
             try
             {
+                using (AesGcm aesGcm = new AesGcm(key, tag.Length))
+                {
+                    aesGcm.Decrypt(nonce, ciphertext, tag, decrypted_text);
+                }
+
                 ParseVault(decrypted_text);
                 _state = VaultState.Unlocked;
                 _autoLockTimer.Start();
+            }
+            catch
+            {
+                _autoLockTimer.Dispose();
+                _state = VaultState.Locked;
+                throw;
             }
             finally
             {

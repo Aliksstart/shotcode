@@ -1,5 +1,6 @@
 ﻿using Core;
 using Core.Crypto;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Tests
@@ -185,6 +186,23 @@ namespace Tests
             await WaitForConditionAsync(() => auto_closed, timeoutMs: 2000, pollIntervalMs: 30);
             Assert.IsTrue(auto_closed);
             Assert.AreEqual(1, locked_count);
+        }
+        [TestMethod]
+        public void IncorrectPasswordOpen_Test()
+        {
+            byte[] local_pass = GetDefaultPassword();
+            using (VaultOrigin vaultOrigin = new VaultOrigin(_db, ref local_pass, KdfType.Argon2id, 10, () => { }))
+            {
+                vaultOrigin.Save();
+                Assert.AreSame(local_pass, Array.Empty<byte>());
+            }
+
+            byte[] incorrect_pass = Encoding.UTF8.GetBytes("IncorrectPassword");
+            var eq = Assert.ThrowsException<Core.VaultDecryptionException>(() =>
+            {
+                using VaultOrigin vo = new VaultOrigin(_db, ref incorrect_pass, 60000, () => { });
+            });
+            Assert.AreSame(incorrect_pass, Array.Empty<byte>());
         }
     }
 }

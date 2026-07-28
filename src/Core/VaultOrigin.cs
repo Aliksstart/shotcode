@@ -24,7 +24,7 @@ namespace Core
         {
             (byte[] nonce, byte[] tag, byte[] origin) = db.GetOriginBlock();
             if (origin.Length < 5)
-                throw new Exception("Origin block too small");
+                throw new InvalidDataException("Origin block too small");
             byte kdf_id;
             uint raw_kdf_len;
             int offset = 0;
@@ -57,7 +57,15 @@ namespace Core
                 throw new FormatException("Invalid size ciphertext");
             byte[] ciphertext = new byte[text_size];
             origin.AsSpan(offset, text_size).CopyTo(ciphertext);
-            base.Open(_kdf.Key, nonce, tag, ciphertext);
+            try
+            {
+                base.Open(_kdf.Key, nonce, tag, ciphertext);
+            }
+            catch (Exception e)
+            {
+                _kdf.Dispose();
+                throw new VaultDecryptionException(e);
+            }
         }
 
         public VaultOrigin(SCDB db, ref byte[] password, KdfType kdfType, int interval, Action lockedEvent) : base(db, interval, lockedEvent, VaultState.Dirty)
@@ -98,6 +106,7 @@ namespace Core
         new public void Close() 
         {
             base.Close();
+            _kdf?.Dispose();
         }
 
         protected override void OnLocking()
