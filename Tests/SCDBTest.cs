@@ -8,12 +8,33 @@ namespace Tests
     public class SCDBTests
     {
         [TestMethod]
-        public void CreateNewFile_ThenRead_ShouldBeValid()
+        public void DoubleOpenFile()
         {
             string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.scdb");
 
             try
             {
+                using (var db = new SCDB(path))
+                {
+                    Assert.IsTrue(File.Exists(path));
+                    Assert.IsTrue(new FileInfo(path).Length > 0);
+                    Assert.ThrowsException<IOException>(() => { using var db2 = new SCDB(path); });
+                }
+            }
+            finally
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+        }
+        [TestMethod]
+        public void CreateNewFile_ThenRead_ShouldBeValid()
+        {
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.scdb");
+            
+            try
+            {
+                DateTime ctime = DateTime.UtcNow;
                 using (var db = new SCDB(path))
                 {
                 }
@@ -23,7 +44,9 @@ namespace Tests
 
                 using (var db = new SCDB(path))
                 {
-                    // потом сюда добавишь read-only свойства и проверки
+                    Assert.IsTrue(db.IsClear());
+                    Assert.IsTrue((db.Created - ctime).Duration() < TimeSpan.FromSeconds(2));
+                    Assert.IsTrue((db.Updated - ctime).Duration() < TimeSpan.FromSeconds(2));
                 }
             }
             finally
@@ -48,7 +71,7 @@ namespace Tests
 
                 using (Stream fs = File.Open(path, FileMode.Open, FileAccess.Write))
                 {
-                    fs.Position = 4; // после magic
+                    fs.Position = 4;
                     fs.Write(buf);
                 }
 
@@ -70,7 +93,6 @@ namespace Tests
 
             try
             {
-                // создаём рандомный блок
                 byte[] nonce = RandomNumberGenerator.GetBytes(SCDBLayout.NonceSize);
                 byte[] tag = RandomNumberGenerator.GetBytes(SCDBLayout.GcmTagSize);
                 byte[] ciphertext = RandomNumberGenerator.GetBytes(32);
@@ -78,21 +100,17 @@ namespace Tests
                 using (var db = new SCDB(path))
                 {
 
-                    // сохраним текущее время
                     oldUpdated = db.Updated;
 
-                    // записываем блок
                     db.setCryptoOrigin(nonce, tag, ciphertext);
 
                     var (origReadNonce, origRreadTag, origReadCipher) = db.GetOriginBlock();
 
-                    // проверяем, что данные совпали
                     CollectionAssert.AreEqual(nonce, origReadNonce, "Nonce didn't match");
                     CollectionAssert.AreEqual(tag, origRreadTag, "GCM tag didn't match");
                     CollectionAssert.AreEqual(ciphertext, origReadCipher, "Ciphertext didn't match");
                 }
 
-                // читаем заново из файла
                 using var db2 = new SCDB(path);
 
                 var (readNonce2, readTag2, readCipher2) = db2.GetOriginBlock();
@@ -101,7 +119,6 @@ namespace Tests
                 CollectionAssert.AreEqual(tag, readTag2, "GCM tag after restart it didn't match");
                 CollectionAssert.AreEqual(ciphertext, readCipher2, "Ciphertext after restart it didn't match");
 
-                // проверяем, что updated_ts увеличился
                 Assert.IsTrue(db2.Updated > oldUpdated, "Updated timestamp should have increased after writing crypto block");
             }
             finally

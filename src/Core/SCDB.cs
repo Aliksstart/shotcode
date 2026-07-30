@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Core
 {
@@ -11,6 +10,7 @@ namespace Core
     {
         private static ReadOnlySpan<byte> MagicConst => "SCDB"u8;
         public const uint CurrentVersion = 1;
+        private string _path;
 
         private byte[] _magic = new byte[SCDBLayout.MagicSize];
         private uint _version;
@@ -105,20 +105,20 @@ namespace Core
             }
             
         }
-        private void writeUint32(uint value) 
+        private void writeUint32(Stream curr_stream, uint value) 
         {
             Span<byte> buf = stackalloc byte[4];
             BinaryPrimitives.WriteUInt32LittleEndian(buf, value);
-            stream.Write(buf);
+            curr_stream.Write(buf);
         }
-        private void writeUint64(ulong value)
+        private void writeUint64(Stream curr_stream, ulong value)
         {
             Span<byte> buf = stackalloc byte[8];
             BinaryPrimitives.WriteUInt64LittleEndian(buf, value);
-            stream.Write(buf);
+            curr_stream.Write(buf);
         }
-        private void WriteAllFile() {
-            if (!stream.CanWrite)
+        private void WriteAllFile(Stream curr_stream) {
+            if (!curr_stream.CanWrite)
                 throw new IOException("Stream is not writable");
             if (_version != 1)
                 throw new NotSupportedException("Unsupported version: "+_version.ToString());
@@ -130,51 +130,74 @@ namespace Core
             if (_len_crypto_origin != _crypted_origin.Length)
                 throw new InvalidDataException("Invalid origin crypto length.");
 
-            stream.Position = 0;
-            stream.Write(_magic);
+            curr_stream.Position = 0;
+            curr_stream.Write(_magic);
             
-            writeUint32(_version);
-            writeUint64(_created_ts);
-            writeUint64(_updated_ts);
-            writeUint64(_tpm_updated_ts);
-            stream.Write(_nonce_origin);
-            stream.Write(_nonce_tpm);
-            stream.Write(_reserved);
-            writeUint32(_len_crypto_origin);
-            writeUint32(_len_crypto_tpm);
-            stream.Write(_origin_gcm_tag);
-            stream.Write(_tpm_gcm_tag);
+            writeUint32(curr_stream, _version);
+            writeUint64(curr_stream, _created_ts);
+            writeUint64(curr_stream, _updated_ts);
+            writeUint64(curr_stream, _tpm_updated_ts);
+            curr_stream.Write(_nonce_origin);
+            curr_stream.Write(_nonce_tpm);
+            curr_stream.Write(_reserved);
+            writeUint32(curr_stream, _len_crypto_origin);
+            writeUint32(curr_stream, _len_crypto_tpm);
+            curr_stream.Write(_origin_gcm_tag);
+            curr_stream.Write(_tpm_gcm_tag);
             if (_len_crypto_origin > 0)
             {
-                stream.Write(_crypted_origin);
+                curr_stream.Write(_crypted_origin);
             }
-            stream.SetLength(stream.Position);
-            stream.Flush();
+            curr_stream.SetLength(curr_stream.Position);
+            curr_stream.Flush();
         }
         public SCDB(string path) {
             try
             {
                 if (File.Exists(path))
                 {
-                    stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
+                    stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                     ReadAllFile();
                 }
                 else
                 {
                     createBaseStruct();
-                    stream = File.Open(path, FileMode.Create, FileAccess.ReadWrite);
-                    WriteAllFile();
+                    stream = File.Open(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+                    WriteAllFile(stream);
                 }
+                _path = path;
             }catch
             {
+                _path = string.Empty;
                 stream?.Dispose();
                 throw;
             }
         }
-        private void WriteAt(long offset, ReadOnlySpan<byte> data)
+        private void saveAtomic()
         {
-            stream.Position = offset;
-            stream.Write(data);
+            string tmp = $"{_path}.tmp";
+            bool replaced = false;
+            try
+            {
+                using (FileStream nf = File.Open(tmp, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                {
+                    WriteAllFile(nf);
+                    nf.Flush(true);
+                }
+                stream.Dispose();
+                File.Replace(tmp, _path, null);
+                replaced = true;
+                stream = File.Open(_path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                ReadAllFile();
+            }
+            catch
+            {
+                if (!replaced)
+                {
+                    try { File.Delete(tmp); } catch { }
+                }
+                throw;
+            }
         }
         public void setCryptoOrigin(byte[] nonce, byte[] origin_gcm_tag, byte[] data)
         {
@@ -184,24 +207,12 @@ namespace Core
             if (origin_gcm_tag.Length != _origin_gcm_tag.Length) {
                 throw new ArgumentException("Invalid origin GCM tag value");
             }
-            WriteAt(SCDBLayout.OriginNonceOffset, nonce);
             nonce.CopyTo(_nonce_origin, 0);
-            WriteAt(SCDBLayout.OriginTagOffset, origin_gcm_tag);
             origin_gcm_tag.CopyTo(_origin_gcm_tag, 0);
-            stream.Position = SCDBLayout.OriginLenOffset;
-            writeUint32((uint)data.Length);
             _len_crypto_origin = (uint)data.Length;
-            //TODO: Read TPM Crypto
-            WriteAt(SCDBLayout.OriginCiphertextOffset, data);
             _crypted_origin = data.ToArray();
-            stream.SetLength(stream.Position);
-            //TODO: Write TPM Crypto in new offset
-
-            stream.Position = SCDBLayout.UpdateTSOffset;
-            ulong update_ts = (ulong)((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds();
-            writeUint64(update_ts);
-            stream.Flush();
-            _updated_ts = update_ts;
+            _updated_ts = (ulong)((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds();
+            saveAtomic();
         }
         public (byte[] Nonce, byte[] Tag, byte[] Ciphertext) GetOriginBlock()
         {
