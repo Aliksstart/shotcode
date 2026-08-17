@@ -51,6 +51,13 @@ namespace Tests
             Assert.AreEqual(BlockTypes.UNKNOWN, bUnknown.Type);
         }
         [TestMethod]
+        public void PeriodOrCounterGetter_ShouldReturnCorrect()
+        {
+            byte[] tmp = Array.Empty<byte>();
+            Block b1 = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", Array.Empty<byte>());
+            Assert.AreEqual((ulong)30, b1.PeriodOrCounter);
+        }
+        [TestMethod]
         public void AlgorithmGetter_ShouldReturnCorrectEnum()
         {
             byte[] tmp = Array.Empty<byte>();

@@ -93,6 +93,12 @@ namespace Core
                 }
             }
         }
+        public ulong PeriodOrCounter
+        {
+            get {
+                return _period_or_counter;
+            }
+        }
         private void writeUint32(uint value, MemoryStream ms)
         {
             Span<byte> buf = stackalloc byte[4];
