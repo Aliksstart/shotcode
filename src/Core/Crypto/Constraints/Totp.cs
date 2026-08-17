@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Core.Crypto.Constraints
 {
-    internal static class Totp
+    public static class Totp
     {
         public const int MinDigits = 4;
         public const int MaxDigits = 8;
