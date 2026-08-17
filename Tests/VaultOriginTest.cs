@@ -92,7 +92,7 @@ namespace Tests
             byte[] local_pass2 = GetDefaultPassword();
             using VaultOrigin vaultOrigin2 = new VaultOrigin(_db, ref local_pass2, 6000, () => { });
             Assert.AreEqual(1, vaultOrigin2.GetNameServices().Length);
-            Assert.AreEqual(-1, vaultOrigin2.GetCode("Test_service"));
+            Assert.ThrowsException<KeyNotFoundException>(() => { vaultOrigin2.GetCode("Test_service"); });
             
         }
         [TestMethod]
@@ -127,7 +127,7 @@ namespace Tests
             using VaultOrigin vaultOrigin2 = new VaultOrigin(_db, ref local_pass, 60000, () => { });
             Assert.IsFalse(vaultOrigin2.AddBlock(block));
             Assert.AreNotEqual(-1, vaultOrigin2.GetCode("service"));
-            Assert.AreEqual(-1, vaultOrigin2.GetCode("service2"));
+            Assert.ThrowsException<KeyNotFoundException>(() => { vaultOrigin2.GetCode("service2"); });
         }
         [TestMethod]
         public void RemoveBlock_Test()
@@ -145,7 +145,7 @@ namespace Tests
             using VaultOrigin vaultOrigin2 = new VaultOrigin(_db, ref local_pass, 60000, () => { });
             Assert.IsFalse(vaultOrigin2.RemoveBlock("service2"));
             Assert.IsTrue(vaultOrigin2.RemoveBlock("service"));
-            Assert.AreEqual(-1, vaultOrigin2.GetCode("service"));
+            Assert.ThrowsException<KeyNotFoundException>(() => { vaultOrigin2.GetCode("service"); });
             vaultOrigin2.Save();
             vaultOrigin2.Close();
 
@@ -153,6 +153,51 @@ namespace Tests
             using VaultOrigin vaultOrigin3 = new VaultOrigin(_db, ref local_pass, 60000, () => { });
             string[] ns = vaultOrigin3.GetNameServices();
             Assert.AreEqual(0, ns.Length);
+        }
+        [TestMethod]
+        public void GetCode_ShouldReturnCorrect()
+        {
+            byte[] local_pass = GetDefaultPassword();
+            using VaultOrigin vaultOrigin = new VaultOrigin(_db, ref local_pass, KdfType.Argon2id, 60000, () => { });
+            vaultOrigin.Save();
+            Assert.ThrowsException<KeyNotFoundException>(() => { vaultOrigin.GetCode("none"); });
+            byte[] secret = { 1, 2, 3 };
+            Block block = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", secret);
+            vaultOrigin.AddBlock(block);
+            vaultOrigin.Save();
+            Assert.AreEqual(block.Code, vaultOrigin.GetCode("service"));
+            vaultOrigin.Close();
+            Assert.ThrowsException<InvalidOperationException>(() => { vaultOrigin.GetCode("none"); });
+        }
+        [TestMethod]
+        public void GetCodeString_ShouldReturnCorrect()
+        {
+            byte[] local_pass = GetDefaultPassword();
+            using VaultOrigin vaultOrigin = new VaultOrigin(_db, ref local_pass, KdfType.Argon2id, 60000, () => { });
+            vaultOrigin.Save();
+            Assert.ThrowsException<KeyNotFoundException>(() => { vaultOrigin.GetCodeString("none"); });
+            byte[] secret = { 1, 2, 3 };
+            Block block = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", secret);
+            vaultOrigin.AddBlock(block);
+            vaultOrigin.Save();
+            Assert.AreEqual(block.CodeString, vaultOrigin.GetCodeString("service"));
+            vaultOrigin.Close();
+            Assert.ThrowsException<InvalidOperationException>(() => { vaultOrigin.GetCodeString("none"); });
+        }
+        [TestMethod]
+        public void GetPeriodOrCounter_ShouldReturnCorrect()
+        {
+            byte[] local_pass = GetDefaultPassword();
+            using VaultOrigin vaultOrigin = new VaultOrigin(_db, ref local_pass, KdfType.Argon2id, 60000, () => { });
+            vaultOrigin.Save();
+            Assert.ThrowsException<KeyNotFoundException>(() => { vaultOrigin.GetPeriodOrCounter("none"); });
+            byte[] secret = { 1, 2, 3 };
+            Block block = new Block(BlockTypes.TOTP, 6, AlgorithmType.SHA1, 30, "service", secret);
+            vaultOrigin.AddBlock(block);
+            vaultOrigin.Save();
+            Assert.AreEqual(block.PeriodOrCounter, vaultOrigin.GetPeriodOrCounter("service"));
+            vaultOrigin.Close();
+            Assert.ThrowsException<InvalidOperationException>(() => { vaultOrigin.GetPeriodOrCounter("none"); });
         }
         [TestMethod]
         public async Task AutoClose_Test()

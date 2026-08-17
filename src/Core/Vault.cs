@@ -265,7 +265,7 @@ namespace Core
                         return e.Code;
                     }
                 }
-                return -1;
+                throw new KeyNotFoundException("An unknown service name was passed.");
             }
         }
         public String GetCodeString(string name)
@@ -277,7 +277,20 @@ namespace Core
                 foreach (var e in _blocks)
                     if (e.NameService == name)
                         return e.CodeString;
-                return String.Empty;
+                throw new KeyNotFoundException("An unknown service name was passed.");
+            }
+        }
+
+        public ulong GetPeriodOrCounter(string name)
+        {
+            lock (_lock)
+            {
+                if (_state == VaultState.Locked)
+                    throw new InvalidOperationException("Can't work with a locked vault.");
+                foreach (var e in _blocks)
+                    if (e.NameService == name)
+                        return e.PeriodOrCounter;
+                throw new KeyNotFoundException("An unknown service name was passed.");
             }
         }
 
