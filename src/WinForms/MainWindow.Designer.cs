@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             WizzardPanel = new Panel();
             WizzardSplitContainer = new SplitContainer();
             PathToFileTextBox = new TextBox();
@@ -57,6 +58,7 @@
             AddInfoActionPanel = new Panel();
             CancelAddInfoButton = new Button();
             addedSecInfoButton = new Button();
+            CodeUpdateTimer = new System.Windows.Forms.Timer(components);
             WizzardPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)WizzardSplitContainer).BeginInit();
             WizzardSplitContainer.Panel1.SuspendLayout();
@@ -346,6 +348,11 @@
             addedSecInfoButton.UseVisualStyleBackColor = true;
             addedSecInfoButton.Click += addedSecInfoButton_Click;
             // 
+            // CodeUpdateTimer
+            // 
+            CodeUpdateTimer.Interval = 1000;
+            CodeUpdateTimer.Tick += CodeUpdateTimer_Tick;
+            // 
             // MainWindow
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -405,5 +412,6 @@
         private TextBox ServiceNameTextBox;
         private ColumnHeader CodeService;
         private ColumnHeader LeftTime;
+        private System.Windows.Forms.Timer CodeUpdateTimer;
     }
 }

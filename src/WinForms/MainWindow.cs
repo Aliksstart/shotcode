@@ -15,6 +15,7 @@ namespace WinForms
 
         private void ShowScreen(Screen s)
         {
+            CodeUpdateTimer.Enabled = false;
             switch (s)
             {
                 case Screen.Wizzard:
@@ -38,13 +39,14 @@ namespace WinForms
                             item.ToolTipText = ex.Message;
                             item.SubItems.Add("---");
                         }
-                        item.SubItems.Add("TODO");
+                        item.SubItems.Add($"{_origin.GetPeriodOrCounter(e)} s");
                         SecretsListView.Items.Add(item);
                     }
                     if (skip_block > 0)
                     {
                         MessageBox.Show($"Skiped block: {skip_block}");
                     }
+                    CodeUpdateTimer.Enabled = true;
                     break;
                 case Screen.AddInfo:
                     break;
@@ -199,6 +201,38 @@ namespace WinForms
             if (e.Button == MouseButtons.Left && SecretsListView.SelectedItems.Count == 1)
             {
                 Clipboard.SetText(SecretsListView.SelectedItems[0].SubItems[1].Text);
+            }
+        }
+
+        private void CodeUpdateTimer_Tick(object sender, EventArgs e)
+        {
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            foreach (ListViewItem it in SecretsListView.Items)
+            {
+                string name = it.Text;
+                long period = 0;
+                try
+                {
+                    period = checked((long)_origin.GetPeriodOrCounter(name));
+                }
+                catch (InvalidOperationException)
+                {
+                    CodeUpdateTimer.Enabled = false;
+                    return;
+                }
+                int left = checked((int)(period - (now % period)));
+                if (left < 5 || left > period - 5)
+                {
+                    try
+                    {
+                        it.SubItems[1].Text = _origin.GetCodeString(name);
+                    }
+                    catch
+                    {
+                        it.SubItems[1].Text = "---";
+                    }
+                }
+                it.SubItems[2].Text = left + "s";
             }
         }
     }
