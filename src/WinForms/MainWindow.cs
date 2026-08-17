@@ -182,13 +182,21 @@ namespace WinForms
             int sidx = AlgorithmAddInfoComboBox.SelectedIndex;
             if (sidx >= 0)
             {
-                Span<byte> secret = stackalloc byte[Core.Crypto.Base32.GetDecodeLength(CodeAddInfoTextBox.Text)];
-                Core.Crypto.Base32.Decode(CodeAddInfoTextBox.Text, secret);
-                Core.Crypto.AlgorithmType alg = Enum.Parse<AlgorithmType>(AlgorithmAddInfoComboBox.SelectedItem.ToString());
-                Block b = new Block(BlockTypes.TOTP, ((int)DigitsAddInfoNumericUpDown.Value), alg, ((ulong)PeriodAddInfoNumericUpDown.Value), ServiceNameTextBox.Text, secret);
-                _origin.AddBlock(b);
-                _origin.Save();
-                ShowScreen(Screen.Valut);
+                try
+                {
+                    string secret_s = CodeAddInfoTextBox.Text.Replace(" ", "").Replace("-", "").ToUpperInvariant();
+                    Span<byte> secret = stackalloc byte[Core.Crypto.Base32.GetDecodeLength(secret_s)];
+                    Core.Crypto.Base32.Decode(secret_s, secret);
+                    Core.Crypto.AlgorithmType alg = Enum.Parse<AlgorithmType>(AlgorithmAddInfoComboBox.SelectedItem.ToString());
+                    Block b = new Block(BlockTypes.TOTP, ((int)DigitsAddInfoNumericUpDown.Value), alg, ((ulong)PeriodAddInfoNumericUpDown.Value), ServiceNameTextBox.Text, secret);
+                    _origin.AddBlock(b);
+                    _origin.Save();
+                    ShowScreen(Screen.Valut);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
             }
             else
             {
@@ -214,6 +222,7 @@ namespace WinForms
                 try
                 {
                     period = checked((long)_origin.GetPeriodOrCounter(name));
+                    if (period <= 0) continue;
                 }
                 catch (InvalidOperationException)
                 {
