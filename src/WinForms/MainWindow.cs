@@ -188,9 +188,17 @@ namespace WinForms
                 _origin.Save();
                 ShowScreen(Screen.Valut);
             }
-            else 
+            else
             {
                 MessageBox.Show("The algorithm for obtaining the hash is not specified.", "ShotCode", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void SecretsListView_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && SecretsListView.SelectedItems.Count == 1)
+            {
+                Clipboard.SetText(SecretsListView.SelectedItems[0].SubItems[1].Text);
             }
         }
     }

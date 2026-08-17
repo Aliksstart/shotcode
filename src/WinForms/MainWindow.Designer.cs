@@ -180,6 +180,7 @@
             SecretsListView.TabIndex = 1;
             SecretsListView.UseCompatibleStateImageBehavior = false;
             SecretsListView.View = View.Details;
+            SecretsListView.MouseDoubleClick += SecretsListView_MouseDoubleClick;
             // 
             // NameService
             // 
